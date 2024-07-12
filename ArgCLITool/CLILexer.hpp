@@ -4,11 +4,12 @@
 #include <string>
 #include <istream>
 #include <sstream>
+#include <optional>
 
 namespace ArgCLITool {
 
 struct CLIToken {
-    enum class Type : int {
+    enum class Type {
         Identifier,
         String,
         Integer,
@@ -25,38 +26,23 @@ struct CLIToken {
         EndOfFile,
         Unknown
     };
-    static std::string toString(Type type) {
+    static inline std::string toString(Type type) {
         switch (type) {
-            case Type::Identifier:
-                return "Identifier";
-            case Type::String:
-                return "String";
-            case Type::Integer:
-                return "Integer";
-            case Type::Float:
-                return "Float";
-            case Type::LeftParen:
-                return "LeftParen";
-            case Type::RightParen:
-                return "RightParen";
-            case Type::LeftSquare:
-                return "LeftSquare";
-            case Type::RightSquare:
-                return "RightSquare";
-            case Type::LeftCurly:
-                return "LeftCurly";
-            case Type::RightCurly:
-                return "RightCurly";
-            case Type::Comma:
-                return "Comma";
-            case Type::EndOfLine:
-                return "EndOfLine";
-            case Type::Comment:
-                return "Comment";
-            case Type::EndOfFile:
-                return "EndOfFile";
-            case Type::Unknown:
-                return "Unknown";
+            case Type::Identifier:  return "Identifier";
+            case Type::String:      return "String";
+            case Type::Integer:     return "Integer";
+            case Type::Float:       return "Float";
+            case Type::LeftParen:   return "LeftParen";
+            case Type::RightParen:  return "RightParen";
+            case Type::LeftSquare:  return "LeftSquare";
+            case Type::RightSquare: return "RightSquare";
+            case Type::LeftCurly:   return "LeftCurly";
+            case Type::RightCurly:  return "RightCurly";
+            case Type::Comma:       return "Comma";
+            case Type::EndOfLine:   return "EndOfLine";
+            case Type::Comment:     return "Comment";
+            case Type::EndOfFile:   return "EndOfFile";
+            case Type::Unknown:     return "Unknown";
         }
         return "Unknown";
     }
@@ -70,80 +56,40 @@ public:
     CLILexer(std::istream& stream) : stream_(stream) {}
 
     CLIToken nextToken() {
+        if (peeked_token_) {
+            CLIToken token = std::move(*peeked_token_);
+            peeked_token_.reset();
+            return token;
+        }
+        return readNextToken();
+    }
+
+    const CLIToken& peekToken() {
+        if (!peeked_token_) {
+            peeked_token_ = readNextToken();
+        }
+        return *peeked_token_;
+    }
+
+private:
+    CLIToken readNextToken() {
         char c;
 
         while (stream_.get(c)) {
             switch (c) {
-                case 'A':
-                case 'B':
-                case 'C':
-                case 'D':
-                case 'E':
-                case 'F':
-                case 'G':
-                case 'H':
-                case 'I':
-                case 'J':
-                case 'K':
-                case 'L':
-                case 'M':
-                case 'N':
-                case 'O':
-                case 'P':
-                case 'Q':
-                case 'R':
-                case 'S':
-                case 'T':
-                case 'U':
-                case 'V':
-                case 'W':
-                case 'X':
-                case 'Y':
-                case 'Z':
+                case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G': case 'H': case 'I': case 'J':
+                case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T':
+                case 'U': case 'V': case 'W': case 'X': case 'Y': case 'Z':
                 case '_':
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'd':
-                case 'e':
-                case 'f':
-                case 'g':
-                case 'h':
-                case 'i':
-                case 'j':
-                case 'k':
-                case 'l':
-                case 'm':
-                case 'n':
-                case 'o':
-                case 'p':
-                case 'q':
-                case 'r':
-                case 's':
-                case 't':
-                case 'u':
-                case 'v':
-                case 'w':
-                case 'x':
-                case 'y':
-                case 'z':
+                case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i': case 'j':
+                case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': case 'q': case 'r': case 's': case 't':
+                case 'u': case 'v': case 'w': case 'x': case 'y': case 'z':
                     stream_.unget();
                     return readIdentifier();
                 case '"':
                     return readString();
-                case '-':
-                case '+':
-                case '.':
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
+                case '-': case '+': case '.':
+                case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
                     stream_.unget();
                     return readNumber();
                 case '(':
@@ -165,9 +111,7 @@ public:
                 case '#':
                     stream_.unget();
                     return readComment();
-                case ' ':
-                case '\t':
-                case '\r':
+                case ' ': case '\t': case '\r':
                     // Ignore whitespace
                     continue;
                 default:
@@ -179,7 +123,6 @@ public:
         return CLIToken{CLIToken::Type::EndOfFile, ""};
     }
 
-private:
     static inline constexpr bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
     static inline constexpr bool isDigit(char c) { return c >= '0' && c <= '9'; }
     static inline constexpr bool isAlpha(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
@@ -189,7 +132,7 @@ private:
      *
      * @return CLIToken
      */
-    CLIToken readIdentifier() {
+    inline CLIToken readIdentifier() {
         std::string value;
         char c;
 
@@ -212,7 +155,7 @@ private:
      *
      * @note The escape character is '\'. If it appears on the end of line, the new line (\n|\r\n) is ignored.
      */
-    CLIToken readString() {
+    inline CLIToken readString() {
         std::string value;
         char c;
         bool escape = false;
@@ -250,7 +193,7 @@ private:
      *
      * @return CLIToken
      */
-    CLIToken readNumber() {
+    inline CLIToken readNumber() {
         std::string value;
         char c;
 
@@ -297,7 +240,7 @@ private:
      *
      * @return CLIToken
      */
-    CLIToken readComment() {
+    inline CLIToken readComment() {
         std::string value;
         char c;
 
@@ -313,6 +256,7 @@ private:
     }
 private:
     std::istream& stream_;
+    std::optional<CLIToken> peeked_token_;
 };
 
 }
