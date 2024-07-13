@@ -56,6 +56,10 @@ class CLILexer {
 public:
     CLILexer(std::istream& stream) : stream_(stream) {}
 
+    bool hasMoreTokens() {
+        return stream_.peek() != std::char_traits<char>::eof();
+    }
+
     CLIToken nextToken() {
         if (peeked_token_) {
             CLIToken token = std::move(*peeked_token_);
