@@ -8,6 +8,42 @@
 
 namespace ArgCLITool {
 
+// Abstract input stream
+class CLIInputStream {
+public:
+    virtual ~CLIInputStream() = default;
+
+    virtual char peek() = 0;
+    virtual bool get(char& c) = 0;
+    virtual void unget() = 0;
+    virtual int64_t tellg() = 0;
+};
+
+// Input stream for std::istream
+class CLIStdInputStream : public CLIInputStream {
+public:
+    CLIStdInputStream(std::istream& stream) : stream_(stream) {}
+
+    char peek() override {
+        return stream_.peek();
+    }
+
+    bool get(char& c) override {
+        return static_cast<bool>(stream_.get(c));
+    }
+
+    void unget() override {
+        stream_.unget();
+    }
+
+    int64_t tellg() override {
+        return stream_.tellg();
+    }
+
+private:
+    std::istream& stream_;
+};
+
 struct CLIToken {
     enum class Type {
         Identifier,
@@ -54,7 +90,7 @@ struct CLIToken {
 
 class CLILexer {
 public:
-    CLILexer(std::istream& stream) : stream_(stream) {}
+    CLILexer(CLIInputStream& stream) : stream_(stream) {}
 
     bool hasMoreTokens() {
         return stream_.peek() != std::char_traits<char>::eof();
@@ -265,7 +301,7 @@ private:
         return CLIToken{CLIToken::Type::Comment, value, position};
     }
 private:
-    std::istream& stream_;
+    CLIInputStream& stream_;
     std::optional<CLIToken> peeked_token_;
 };
 
