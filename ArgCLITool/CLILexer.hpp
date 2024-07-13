@@ -179,7 +179,8 @@ private:
         char c;
         int64_t position = stream_.tellg();
 
-        while ((c = stream_.peek())) {
+        while (true) {
+            c = stream_.peek();
             if (isAlpha(c) || isDigit(c) || c == '_') {
                 stream_.get(c);
                 value += c;
@@ -243,7 +244,7 @@ private:
         int64_t position = stream_.tellg();
 
         while ((c = stream_.peek())) {
-            if (isDigit(c) || isAlpha(c) || c == '.' || c == '-' || c == '+') {
+            if (isDigit(c) || isAlpha(c) || c == '_' || c == '.' || c == '-' || c == '+') {
                 stream_.get(c);
                 value += c;
             } else {
@@ -290,7 +291,8 @@ private:
         char c;
         int64_t position = stream_.tellg();
 
-        while ((c = stream_.peek())) {
+        while (true) {
+            c = stream_.peek();
             if (c == '\n') {
                 break;
             }
