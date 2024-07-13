@@ -487,14 +487,14 @@ private:
             case CLIToken::Type::Integer: // Integer or NumberVector
                 // TODO: merge with Float case (DRY principle)
                 token = lexer_.nextToken();
-                if (lexer_.peekToken().type == CLIToken::Type::Comma) { // If comma is present after integer, then it's a NumberVector
+                if (lexer_.peekToken().type == CLIToken::Type::Comma) { // If comma is present after integer, then it's an IntegerVector or FloatVector
                     lexer_.nextToken(); // Discard comma
                     arg = parseNumberList(); // IntegerVector or FloatVector
                     // Insert the first integer into the vector
                     if (arg.type == Argument::Type::IntegerVector) {
                         auto integer_vector_data = static_cast<IntegerVectorData*>(arg.data.get());
                         integer_vector_data->value.insert(integer_vector_data->value.begin(), std::stoll(token.value));
-                    } else {
+                    } else { // FloatVector is ok, because integer can be converted to float
                         auto float_vector_data = static_cast<FloatVectorData*>(arg.data.get());
                         float_vector_data->value.insert(float_vector_data->value.begin(), static_cast<double>(std::stoll(token.value)));
                     }
@@ -505,16 +505,24 @@ private:
                 break;
             case CLIToken::Type::Float: // Float or NumberVector
                 token = lexer_.nextToken();
-                if (lexer_.peekToken().type == CLIToken::Type::Comma) { // If comma is present after float, then it's a NumberVector
+                if (lexer_.peekToken().type == CLIToken::Type::Comma) { // If comma is present after float, then it's must be a FloatVector
                     lexer_.nextToken(); // Discard comma
                     arg = parseNumberList(); // IntegerVector or FloatVector
                     // Insert the first float into the vector
-                    if (arg.type == Argument::Type::IntegerVector) {
-                        auto integer_vector_data = static_cast<IntegerVectorData*>(arg.data.get());
-                        integer_vector_data->value.insert(integer_vector_data->value.begin(), static_cast<int64_t>(std::stod(token.value)));
-                    } else {
+                    if (arg.type == Argument::Type::FloatVector) {
                         auto float_vector_data = static_cast<FloatVectorData*>(arg.data.get());
                         float_vector_data->value.insert(float_vector_data->value.begin(), std::stod(token.value));
+                    } else { // IntegerVector is not ok, because float cannot be converted to integer
+                        auto integer_vector_data = static_cast<IntegerVectorData*>(arg.data.get());
+                        // Convert integer vector to float vector
+                        auto float_vector_data = std::make_unique<FloatVectorData>();
+                        float_vector_data->value.push_back(std::stod(token.value));
+                        for (const auto& value : integer_vector_data->value) {
+                            float_vector_data->value.push_back(static_cast<double>(value));
+                        }
+                        // Update argument
+                        arg.type = Argument::Type::FloatVector;
+                        arg.data = std::move(float_vector_data);
                     }
                 } else { // Float
                     arg.type = Argument::Type::Float;
