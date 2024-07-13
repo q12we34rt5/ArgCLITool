@@ -13,7 +13,8 @@ namespace ArgCLITool {
 // Hook the input stream and record the consumed characters
 class CLIInputStreamHook : public CLIInputStream {
 public:
-    CLIInputStreamHook(CLIInputStream& stream) : stream_(stream), position_(stream.tellg()), line_number_(1), current_line_number_(1) {}
+    CLIInputStreamHook(CLIInputStream& stream)
+        : stream_(stream), stream_position_(0), position_(0), line_number_(1), current_line_number_(1) {}
 
     char peek() override {
         return stream_.peek();
@@ -21,6 +22,7 @@ public:
 
     bool get(char& c) override {
         if (stream_.get(c)) {
+            ++stream_position_;
             consumed_chars_.push_back(c);
             if (c == '\n') {
                 ++current_line_number_;
@@ -35,6 +37,7 @@ public:
             throw std::runtime_error("Cannot unget " + std::string(__FILE__) + ":" + std::to_string(__LINE__));
         }
         stream_.unget();
+        --stream_position_;
         if (consumed_chars_.back() == '\n') {
             --current_line_number_;
         }
@@ -42,11 +45,11 @@ public:
     }
 
     int64_t tellg() override {
-        return stream_.tellg();
+        return stream_position_;
     }
 
     void clearConsumedTokens() {
-        position_ = stream_.tellg();
+        position_ = stream_position_;
         line_number_ = current_line_number_;
         consumed_chars_.clear();
     }
@@ -65,6 +68,7 @@ public:
 
 private:
     CLIInputStream& stream_;
+    int64_t stream_position_; // Input stream may not support tellg() (for example, std::cin)
     std::vector<char> consumed_chars_;
     int64_t position_;
     int64_t line_number_; // Beginning line number of the consumed tokens
