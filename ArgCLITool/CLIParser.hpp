@@ -359,7 +359,8 @@ public:
                 case CLIToken::Type::RightCurly:
                 case CLIToken::Type::Comma:
                     if (command.name.empty()) {
-                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Identifier, lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Identifier, token);
                     } else {
                         command.arguments = parseArgumentList();
                         stream_hook_.clearConsumedTokens();
@@ -383,7 +384,8 @@ public:
                     return command;
                 case CLIToken::Type::Unknown:
                 default:
-                    throw error_reporter_.unknownTokenError(lexer_.peekToken());
+                    token = lexer_.nextToken(); // Discard unexpected token
+                    throw error_reporter_.unknownTokenError(token);
             }
         }
     }
@@ -416,7 +418,8 @@ private:
                 case CLIToken::Type::LeftCurly:
                     if (multiline) {
                         // TODO: Handle nested {} blocks
-                        throw error_reporter_.mismatchedTokenError(lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.mismatchedTokenError(token);
                     }
 
                     lexer_.nextToken(); // Discard left curly
@@ -424,14 +427,16 @@ private:
                     break;
                 case CLIToken::Type::RightCurly:
                     if (!multiline) {
-                        throw error_reporter_.mismatchedTokenError(lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.mismatchedTokenError(token);
                     }
 
                     lexer_.nextToken(); // Discard right curly
                     multiline = false;
                     break;
                 case CLIToken::Type::Comma:
-                    throw error_reporter_.unexpectedTokenError(lexer_.peekToken());
+                    token = lexer_.nextToken(); // Discard unexpected token
+                    throw error_reporter_.unexpectedTokenError(token);
                 case CLIToken::Type::EndOfLine:
                     lexer_.nextToken(); // Discard end of line
                     if (!multiline) {
@@ -443,12 +448,14 @@ private:
                     break;
                 case CLIToken::Type::EndOfFile:
                     if (multiline) {
-                        throw error_reporter_.mismatchedTokenError(lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.mismatchedTokenError(token);
                     }
                     return arguments;
                 case CLIToken::Type::Unknown:
                 default:
-                    throw error_reporter_.unknownTokenError(lexer_.peekToken());
+                    token = lexer_.nextToken(); // Discard unexpected token
+                    throw error_reporter_.unknownTokenError(token);
             }
         }
 
@@ -521,7 +528,8 @@ private:
                 break;
             case CLIToken::Type::RightParen:
             case CLIToken::Type::RightBracket:
-                throw error_reporter_.unexpectedTokenError(lexer_.peekToken());
+                token = lexer_.nextToken(); // Discard unexpected token
+                throw error_reporter_.unexpectedTokenError(token);
             case CLIToken::Type::LeftCurly:
             case CLIToken::Type::RightCurly:
             case CLIToken::Type::Comma:
@@ -589,7 +597,8 @@ private:
             switch (lexer_.peekToken().type) {
                 case CLIToken::Type::Integer:
                     if (!comma) {
-                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
                     }
                     comma = false;
 
@@ -601,7 +610,8 @@ private:
                     break;
                 case CLIToken::Type::Float:
                     if (!comma) {
-                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
                     }
                     comma = false;
 
@@ -614,7 +624,8 @@ private:
                     break;
                 case CLIToken::Type::Comma:
                     if (comma) {
-                        throw error_reporter_.unexpectedTokenError("number", lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError("number", token);
                     }
 
                     lexer_.nextToken(); // Discard comma
@@ -622,10 +633,12 @@ private:
                     break;
                 default:
                     if (first_number) {
-                        throw error_reporter_.unexpectedTokenError("number", lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError("number", token);
                     }
                     if (comma) {
-                        throw error_reporter_.unexpectedTokenError("number", lexer_.peekToken());
+                        token = lexer_.nextToken(); // Discard unexpected token
+                        throw error_reporter_.unexpectedTokenError("number", token);
                     }
 
                     arg.type = integer_vector ? Argument::Type::IntegerVector : Argument::Type::FloatVector;
