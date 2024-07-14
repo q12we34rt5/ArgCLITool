@@ -313,6 +313,7 @@ struct ValueData : Data {
     ValueData(T value) : value(std::move(value)) {}
 };
 
+using IdentifierData = ValueData<std::string>;
 using StringData = ValueData<std::string>;
 using IntegerData = ValueData<int64_t>;
 using FloatData = ValueData<double>;
@@ -321,7 +322,7 @@ using FloatVectorData = ValueData<std::vector<double>>;
 
 struct Argument {
     enum class Type {
-        Identifier,    // StringData
+        Identifier,    // IdentifierData
         String,        // StringData
         Integer,       // IntegerData
         Float,         // FloatData
@@ -330,7 +331,7 @@ struct Argument {
     };
     Type type;
     std::variant<
-        StringData,
+        StringData, // Same as IdentifierData
         IntegerData,
         FloatData,
         IntegerVectorData,
@@ -520,7 +521,7 @@ private:
             case CLIToken::Type::Identifier:
                 token = lexer_.nextToken();
                 arg.type = Argument::Type::Identifier;
-                arg.data = StringData(token.value);
+                arg.data = IdentifierData(token.value);
                 break;
             case CLIToken::Type::String:
                 token = lexer_.nextToken();
