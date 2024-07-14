@@ -485,7 +485,7 @@ private:
                 case CLIToken::Type::EndOfFile:
                     if (multiline) {
                         token = lexer_.nextToken(); // Discard unexpected token
-                        throw error_reporter_.mismatchedTokenError(token);
+                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::RightCurly, token);
                     }
                     return arguments;
                 case CLIToken::Type::Unknown:
