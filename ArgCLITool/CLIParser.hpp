@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <memory>
+#include <variant>
 #include <stdexcept>
 
 namespace ArgCLITool {
@@ -329,7 +329,13 @@ struct Argument {
         FloatVector,   // FloatVectorData
     };
     Type type;
-    std::unique_ptr<Data> data;
+    std::variant<
+        StringData,
+        IntegerData,
+        FloatData,
+        IntegerVectorData,
+        FloatVectorData
+    > data;
 };
 
 struct Command {
@@ -514,12 +520,12 @@ private:
             case CLIToken::Type::Identifier:
                 token = lexer_.nextToken();
                 arg.type = Argument::Type::Identifier;
-                arg.data = std::make_unique<StringData>(token.value);
+                arg.data = StringData(token.value);
                 break;
             case CLIToken::Type::String:
                 token = lexer_.nextToken();
                 arg.type = Argument::Type::String;
-                arg.data = std::make_unique<StringData>(token.value);
+                arg.data = StringData(token.value);
                 break;
             case CLIToken::Type::Integer: // Integer or NumberVector
                 // TODO: merge with Float case (DRY principle)
@@ -529,15 +535,15 @@ private:
                     arg = parseNumberList(); // IntegerVector or FloatVector
                     // Insert the first integer into the vector
                     if (arg.type == Argument::Type::IntegerVector) {
-                        auto integer_vector_data = static_cast<IntegerVectorData*>(arg.data.get());
-                        integer_vector_data->value.insert(integer_vector_data->value.begin(), std::stoll(token.value));
+                        auto& integer_vector_data = std::get<IntegerVectorData>(arg.data);
+                        integer_vector_data.value.insert(integer_vector_data.value.begin(), std::stoll(token.value));
                     } else { // FloatVector is ok, because integer can be converted to float
-                        auto float_vector_data = static_cast<FloatVectorData*>(arg.data.get());
-                        float_vector_data->value.insert(float_vector_data->value.begin(), static_cast<double>(std::stoll(token.value)));
+                        auto& float_vector_data = std::get<FloatVectorData>(arg.data);
+                        float_vector_data.value.insert(float_vector_data.value.begin(), static_cast<double>(std::stoll(token.value)));
                     }
                 } else { // Integer
                     arg.type = Argument::Type::Integer;
-                    arg.data = std::make_unique<IntegerData>(std::stoll(token.value));
+                    arg.data = IntegerData(std::stoll(token.value));
                 }
                 break;
             case CLIToken::Type::Float: // Float or NumberVector
@@ -547,15 +553,15 @@ private:
                     arg = parseNumberList(); // IntegerVector or FloatVector
                     // Insert the first float into the vector
                     if (arg.type == Argument::Type::FloatVector) {
-                        auto float_vector_data = static_cast<FloatVectorData*>(arg.data.get());
-                        float_vector_data->value.insert(float_vector_data->value.begin(), std::stod(token.value));
+                        auto& float_vector_data = std::get<FloatVectorData>(arg.data);
+                        float_vector_data.value.insert(float_vector_data.value.begin(), std::stod(token.value));
                     } else { // IntegerVector is not ok, because float cannot be converted to integer
-                        auto integer_vector_data = static_cast<IntegerVectorData*>(arg.data.get());
+                        auto& integer_vector_data = std::get<IntegerVectorData>(arg.data);
                         // Convert integer vector to float vector
-                        auto float_vector_data = std::make_unique<FloatVectorData>();
-                        float_vector_data->value.push_back(std::stod(token.value));
-                        for (const auto& value : integer_vector_data->value) {
-                            float_vector_data->value.push_back(static_cast<double>(value));
+                        FloatVectorData float_vector_data;
+                        float_vector_data.value.push_back(std::stod(token.value));
+                        for (const auto& value : integer_vector_data.value) {
+                            float_vector_data.value.push_back(static_cast<double>(value));
                         }
                         // Update argument
                         arg.type = Argument::Type::FloatVector;
@@ -563,7 +569,7 @@ private:
                     }
                 } else { // Float
                     arg.type = Argument::Type::Float;
-                    arg.data = std::make_unique<FloatData>(std::stod(token.value));
+                    arg.data = FloatData(std::stod(token.value));
                 }
                 break;
             case CLIToken::Type::LeftParen:
@@ -692,15 +698,15 @@ private:
                     arg.type = integer_vector ? Argument::Type::IntegerVector : Argument::Type::FloatVector;
                     // Parse tokens into integer or float vector
                     if (integer_vector) {
-                        auto data = std::make_unique<IntegerVectorData>();
+                        IntegerVectorData data;
                         for (const auto& token : tokens) {
-                            data->value.push_back(std::stoll(token.value));
+                            data.value.push_back(std::stoll(token.value));
                         }
                         arg.data = std::move(data);
                     } else {
-                        auto data = std::make_unique<FloatVectorData>();
+                        FloatVectorData data;
                         for (const auto& token : tokens) {
-                            data->value.push_back(std::stod(token.value));
+                            data.value.push_back(std::stod(token.value));
                         }
                         arg.data = std::move(data);
                     }
