@@ -258,9 +258,26 @@ Grammar:
     ;
 
 <argument_list>
-    : ''
+    : <arguments>
+    | <argument_list> <arguments>
+    ;
+
+<arguments>
+    : <single_line_arguments>
+    | { }
+    | { <end_of_lines> }
+    | { <muti_line_arguments> }
+    | { <end_of_lines> <muti_line_arguments> <end_of_lines> }
+    ;
+
+<muti_line_arguments>
+    : <single_line_arguments>
+    | <muti_line_arguments> <end_of_lines> <single_line_arguments>
+    ;
+
+<single_line_arguments>
     : <argument>
-    | <argument_list> <argument>
+    | <single_line_arguments> <argument>
     ;
 
 <argument>
@@ -329,8 +346,9 @@ public:
     }
 
     /**
-     *  <command> : <identifier> <argument_list> <end_of_line>
-     *            ;
+     *  <command>
+     *      : <identifier> <argument_list> <end_of_line>
+     *      ;
      */
     Command parseCommand() {
         Command command;
@@ -392,10 +410,28 @@ public:
 
 private:
     /**
-     * <argument_list> : ''
-     *                 | <argument>
-     *                 | <argument_list> <argument>
-     *                 ;
+     * <argument_list>
+     *     : <arguments>
+     *     | <argument_list> <arguments>
+     *     ;
+     *
+     * <arguments>
+     *     : <single_line_arguments>
+     *     | { }
+     *     | { <end_of_lines> }
+     *     | { <muti_line_arguments> }
+     *     | { <end_of_lines> <muti_line_arguments> <end_of_lines> }
+     *     ;
+     *
+     * <muti_line_arguments>
+     *     : <single_line_arguments>
+     *     | <muti_line_arguments> <end_of_lines> <single_line_arguments>
+     *     ;
+     *
+     * <single_line_arguments>
+     *     : <argument>
+     *     | <single_line_arguments> <argument>
+     *     ;
      */
     std::vector<Argument> parseArgumentList() {
         std::vector<Argument> arguments;
@@ -463,11 +499,12 @@ private:
     }
 
     /**
-     * <argument> : <identifier>
-     *            | <string>
-     *            | <number>
-     *            | <vector>
-     *            ;
+     * <argument>
+     *     : <identifier>
+     *     | <string>
+     *     | <number>
+     *     | <vector>
+     *     ;
      */
     Argument parseArgument() {
         Argument arg;
@@ -552,10 +589,11 @@ private:
     }
 
     /**
-     * <vector> : <number_list>
-     *          | ( <number_list> )
-     *          | [ <number_list> ]
-     *          ;
+     * <vector>
+     *     : <number_list>
+     *     | ( <number_list> )
+     *     | [ <number_list> ]
+     *     ;
      */
     Argument parseVector() {
         Argument arg;
@@ -589,8 +627,10 @@ private:
     }
 
     /**
-     * <number_list> : <number>
-     *               | <number_list> , <number>
+     * <number_list>
+     *     : <number>
+     *     | <number_list> , <number>
+     *     ;
      */
     Argument parseNumberList() {
         Argument arg;
