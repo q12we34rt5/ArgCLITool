@@ -97,12 +97,11 @@ public:
         std::string report =
             colorString("Error: ", RED) +
             "expected " + CLIToken::toString(expected) +
-            " at position " + std::to_string(actual.position) +
+            " at position " + std::to_string(actual.begin) +
             " but got " + CLIToken::toString(actual.type) +
             (actual.type == CLIToken::Type::EndOfLine ? "" : " '" + actual.value + "'");
         if (show_source_) {
-            auto range = getHighlightRange(actual);
-            report += "\n" + getSourceSnippetReport(range.first, range.second);
+            report += "\n" + getSourceSnippetReport(actual.begin, actual.end);
         }
         return std::runtime_error(std::move(report));
     }
@@ -114,12 +113,11 @@ public:
         std::string report =
             colorString("Error: ", RED) +
             "expected " + expected +
-            " at position " + std::to_string(actual.position) +
+            " at position " + std::to_string(actual.begin) +
             " but got " + CLIToken::toString(actual.type) +
             (actual.type == CLIToken::Type::EndOfLine ? "" : " '" + actual.value + "'");
         if (show_source_) {
-            auto range = getHighlightRange(actual);
-            report += "\n" + getSourceSnippetReport(range.first, range.second);
+            report += "\n" + getSourceSnippetReport(actual.begin, actual.end);
         }
         return std::runtime_error(std::move(report));
     }
@@ -131,11 +129,10 @@ public:
         std::string report =
             colorString("Error: ", RED) +
             "unexpected " + CLIToken::toString(unexpected.type) +
-            " at position " + std::to_string(unexpected.position) +
+            " at position " + std::to_string(unexpected.begin) +
             (unexpected.type == CLIToken::Type::EndOfLine ? "" : " '" + unexpected.value + "'");
         if (show_source_) {
-            auto range = getHighlightRange(unexpected);
-            report += "\n" + getSourceSnippetReport(range.first, range.second);
+            report += "\n" + getSourceSnippetReport(unexpected.begin, unexpected.end);
         }
         return std::runtime_error(std::move(report));
     }
@@ -147,11 +144,10 @@ public:
         std::string report =
             colorString("Error: ", RED) +
             "mismatched " + CLIToken::toString(unexpected.type) +
-            " at position " + std::to_string(unexpected.position) +
+            " at position " + std::to_string(unexpected.begin) +
             (unexpected.type == CLIToken::Type::EndOfLine ? "" : " '" + unexpected.value + "'");
         if (show_source_) {
-            auto range = getHighlightRange(unexpected);
-            report += "\n" + getSourceSnippetReport(range.first, range.second);
+            report += "\n" + getSourceSnippetReport(unexpected.begin, unexpected.end);
         }
         return std::runtime_error(std::move(report));
     }
@@ -162,24 +158,23 @@ public:
     inline std::runtime_error unknownTokenError(const CLIToken& unknown) {
         std::string report =
             colorString("Error: ", RED) +
-            "unknown token at position " + std::to_string(unknown.position) +
+            "unknown token at position " + std::to_string(unknown.begin) +
             " '" + unknown.value + "'";
         if (show_source_) {
-            auto range = getHighlightRange(unknown);
-            report += "\n" + getSourceSnippetReport(range.first, range.second);
+            report += "\n" + getSourceSnippetReport(unknown.begin, unknown.end);
         }
         return std::runtime_error(std::move(report));
     }
 
 private:
-    std::string getSourceSnippetReport(int64_t position, int64_t length) const {
+    // Note: Both begin and end are inclusive
+    std::string getSourceSnippetReport(int64_t begin, int64_t end) const {
         std::string source = stream_hook_.getConsumedTokens();
         int64_t source_position = stream_hook_.getPosition();
-        int64_t highlight_begin = position - source_position;
-        int64_t highlight_end = highlight_begin + length;
+        // [begin, end] -> [highlight_begin, highlight_end)
+        int64_t highlight_begin = std::max<int64_t>(begin - source_position, 0);
+        int64_t highlight_end = std::min<int64_t>(end - source_position + 1, source.size());
         // Check highlight range
-        if (highlight_begin < 0) { highlight_begin = 0; }
-        if (highlight_end > static_cast<int64_t>(source.size())) { highlight_end = source.size(); }
         if (highlight_begin > highlight_end) { return ""; } // Invalid range
         // Highlight the range
         std::string report;
@@ -206,29 +201,6 @@ private:
             pos = newline_pos + 1;
         }
         return result;
-    }
-
-    static inline std::pair<int64_t, int64_t> getHighlightRange(const CLIToken& token) {
-        switch (token.type) {
-            case CLIToken::Type::String: // Highlight the string with quotes
-                return std::make_pair(token.position - 1, token.value.size() + 2);
-            case CLIToken::Type::Identifier:
-            case CLIToken::Type::Integer:
-            case CLIToken::Type::Float:
-            case CLIToken::Type::LeftParen:
-            case CLIToken::Type::RightParen:
-            case CLIToken::Type::LeftBracket:
-            case CLIToken::Type::RightBracket:
-            case CLIToken::Type::LeftCurly:
-            case CLIToken::Type::RightCurly:
-            case CLIToken::Type::Comma:
-            case CLIToken::Type::EndOfLine:
-            case CLIToken::Type::Comment:
-            case CLIToken::Type::EndOfFile:
-            case CLIToken::Type::Unknown:
-            default:
-                return std::make_pair(token.position, token.value.size());
-        }
     }
 
     static inline std::string addPrefix(const std::string& prefix, const std::string& str) {

@@ -85,7 +85,8 @@ struct CLIToken {
 
     Type type;
     std::string value;
-    int64_t position;
+    int64_t begin;
+    int64_t end;
 };
 
 class CLILexer {
@@ -117,7 +118,7 @@ private:
         char c;
 
         while (stream_.get(c)) {
-            int64_t position = stream_.tellg() - 1;
+            int64_t begin = stream_.tellg() - 1;
             switch (c) {
                 case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G': case 'H': case 'I': case 'J':
                 case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T':
@@ -135,21 +136,21 @@ private:
                     stream_.unget();
                     return readNumber();
                 case '(':
-                    return CLIToken{CLIToken::Type::LeftParen, "(", position};
+                    return CLIToken{CLIToken::Type::LeftParen, "(", begin, begin + 1};
                 case ')':
-                    return CLIToken{CLIToken::Type::RightParen, ")", position};
+                    return CLIToken{CLIToken::Type::RightParen, ")", begin, begin + 1};
                 case '[':
-                    return CLIToken{CLIToken::Type::LeftBracket, "[", position};
+                    return CLIToken{CLIToken::Type::LeftBracket, "[", begin, begin + 1};
                 case ']':
-                    return CLIToken{CLIToken::Type::RightBracket, "]", position};
+                    return CLIToken{CLIToken::Type::RightBracket, "]", begin, begin + 1};
                 case '{':
-                    return CLIToken{CLIToken::Type::LeftCurly, "{", position};
+                    return CLIToken{CLIToken::Type::LeftCurly, "{", begin, begin + 1};
                 case '}':
-                    return CLIToken{CLIToken::Type::RightCurly, "}", position};
+                    return CLIToken{CLIToken::Type::RightCurly, "}", begin, begin + 1};
                 case ',':
-                    return CLIToken{CLIToken::Type::Comma, ",", position};
+                    return CLIToken{CLIToken::Type::Comma, ",", begin, begin + 1};
                 case '\n':
-                    return CLIToken{CLIToken::Type::EndOfLine, "\n", position};
+                    return CLIToken{CLIToken::Type::EndOfLine, "\n", begin, begin + 1};
                 case '#':
                     stream_.unget();
                     return readComment();
@@ -158,11 +159,12 @@ private:
                     continue;
                 default:
                     // Unknown token
-                    return CLIToken{CLIToken::Type::Unknown, std::string(1, c), position};
+                    return CLIToken{CLIToken::Type::Unknown, std::string(1, c), begin, begin + 1};
             }
         }
 
-        return CLIToken{CLIToken::Type::EndOfFile, ""};
+        int64_t position = stream_.tellg();
+        return CLIToken{CLIToken::Type::EndOfFile, "", position, position};
     }
 
     static inline constexpr bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
@@ -177,19 +179,21 @@ private:
     inline CLIToken readIdentifier() {
         std::string value;
         char c;
-        int64_t position = stream_.tellg();
+        int64_t begin = stream_.tellg();
+        int64_t end = begin;
 
         while (true) {
             c = stream_.peek();
             if (isAlpha(c) || isDigit(c) || c == '_') {
                 stream_.get(c);
+                ++end;
                 value += c;
             } else {
                 break;
             }
         }
 
-        return CLIToken{CLIToken::Type::Identifier, value, position};
+        return CLIToken{CLIToken::Type::Identifier, value, begin, end};
     }
 
     /**
@@ -202,10 +206,12 @@ private:
     inline CLIToken readString() {
         std::string value;
         char c;
-        int64_t position = stream_.tellg();
+        int64_t begin = stream_.tellg();
+        int64_t end = begin;
         bool escape = false;
 
         while (stream_.get(c)) {
+            ++end;
             if (escape) {
                 // Handle escaped characters
                 if (c == '\r') {
@@ -229,8 +235,7 @@ private:
             }
         }
 
-        // Return the token
-        return CLIToken{CLIToken::Type::String, value, position};
+        return CLIToken{CLIToken::Type::String, value, begin - 1, end}; // Include the opening quote
     }
 
     /**
@@ -241,11 +246,13 @@ private:
     inline CLIToken readNumber() {
         std::string value;
         char c;
-        int64_t position = stream_.tellg();
+        int64_t begin = stream_.tellg();
+        int64_t end = begin;
 
         while ((c = stream_.peek())) {
             if (isDigit(c) || isAlpha(c) || c == '_' || c == '.' || c == '-' || c == '+') {
                 stream_.get(c);
+                ++end;
                 value += c;
             } else {
                 break;
@@ -262,9 +269,9 @@ private:
             iss >> integer;
             if (iss.eof() && !iss.fail()) {
                 if (has_suffix) {
-                    return CLIToken{CLIToken::Type::Unknown, value, position};
+                    return CLIToken{CLIToken::Type::Unknown, value, begin, end};
                 }
-                return CLIToken{CLIToken::Type::Integer, std::to_string(integer), position};
+                return CLIToken{CLIToken::Type::Integer, std::to_string(integer), begin, end};
             }
         }
 
@@ -274,11 +281,11 @@ private:
             std::istringstream iss(has_suffix ? value.substr(0, value.length() - 1) : value);
             iss >> floating;
             if (iss.eof() && !iss.fail()) {
-                return CLIToken{CLIToken::Type::Float, std::to_string(floating), position};
+                return CLIToken{CLIToken::Type::Float, std::to_string(floating), begin, end};
             }
         }
 
-        return CLIToken{CLIToken::Type::Unknown, value, position};
+        return CLIToken{CLIToken::Type::Unknown, value, begin, end};
     }
 
     /**
@@ -289,7 +296,8 @@ private:
     inline CLIToken readComment() {
         std::string value;
         char c;
-        int64_t position = stream_.tellg();
+        int64_t begin = stream_.tellg();
+        int64_t end = begin;
 
         while (true) {
             c = stream_.peek();
@@ -297,10 +305,11 @@ private:
                 break;
             }
             stream_.get(c);
+            ++end;
             value += c;
         }
 
-        return CLIToken{CLIToken::Type::Comment, value, position};
+        return CLIToken{CLIToken::Type::Comment, value, begin, end};
     }
 private:
     CLIInputStream& stream_;
