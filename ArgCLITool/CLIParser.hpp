@@ -7,6 +7,7 @@
 #include <vector>
 #include <variant>
 #include <stdexcept>
+#include <cassert>
 
 namespace ArgCLITool {
 
@@ -618,14 +619,14 @@ private:
         bool comma = true; // Disallow comma at the beginning
         bool first_number = true;
         std::vector<CLIToken> tokens;
-        // TODO: record the type of tokens (integer or float) to ensure correct conversion (std::stoll or std::stod)
         bool integer_vector = true; // If only integers are present, then it's an integer vector
 
         // Parse tokens into integer vector
         auto parseIntegerVector = [&]() {
             IntegerVectorData data;
             for (const auto& token : tokens) {
-                data.value.push_back(std::stoll(token.value));
+                assert(token.type == CLIToken::Type::Integer || token.type == CLIToken::Type::Float);
+                data.value.push_back(token.type == CLIToken::Type::Integer ? std::stoll(token.value) : static_cast<int64_t>(std::stod(token.value)));
             }
             arg.type = Argument::Type::IntegerVector;
             arg.data = std::move(data);
@@ -634,7 +635,8 @@ private:
         auto parseFloatVector = [&]() {
             FloatVectorData data;
             for (const auto& token : tokens) {
-                data.value.push_back(std::stod(token.value));
+                assert(token.type == CLIToken::Type::Integer || token.type == CLIToken::Type::Float);
+                data.value.push_back(token.type == CLIToken::Type::Integer ? static_cast<double>(std::stoll(token.value)) : std::stod(token.value));
             }
             arg.type = Argument::Type::FloatVector;
             arg.data = std::move(data);
