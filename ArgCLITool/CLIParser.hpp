@@ -618,14 +618,43 @@ private:
         bool comma = true; // Disallow comma at the beginning
         bool first_number = true;
         std::vector<CLIToken> tokens;
+        // TODO: record the type of tokens (integer or float) to ensure correct conversion (std::stoll or std::stod)
         bool integer_vector = true; // If only integers are present, then it's an integer vector
+
+        // Parse tokens into integer vector
+        auto parseIntegerVector = [&]() {
+            IntegerVectorData data;
+            for (const auto& token : tokens) {
+                data.value.push_back(std::stoll(token.value));
+            }
+            arg.type = Argument::Type::IntegerVector;
+            arg.data = std::move(data);
+        };
+        // Parse tokens into float vector
+        auto parseFloatVector = [&]() {
+            FloatVectorData data;
+            for (const auto& token : tokens) {
+                data.value.push_back(std::stod(token.value));
+            }
+            arg.type = Argument::Type::FloatVector;
+            arg.data = std::move(data);
+        };
 
         while (true) {
             switch (lexer_.peekToken().type) {
                 case CLIToken::Type::Integer:
                     if (!comma) {
-                        token = lexer_.nextToken(); // Discard unexpected token
-                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
+                        if (tokens.size() == 1) {
+                            token = lexer_.nextToken(); // Discard unexpected token
+                            throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
+                        }
+                        // Return the argument
+                        if (integer_vector) {
+                            parseIntegerVector();
+                        } else {
+                            parseFloatVector();
+                        }
+                        return arg;
                     }
                     comma = false;
 
@@ -637,8 +666,17 @@ private:
                     break;
                 case CLIToken::Type::Float:
                     if (!comma) {
-                        token = lexer_.nextToken(); // Discard unexpected token
-                        throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
+                        if (tokens.size() == 1) {
+                            token = lexer_.nextToken(); // Discard unexpected token
+                            throw error_reporter_.unexpectedTokenError(CLIToken::Type::Comma, token);
+                        }
+                        // Return the argument
+                        if (integer_vector) {
+                            parseIntegerVector();
+                        } else {
+                            parseFloatVector();
+                        }
+                        return arg;
                     }
                     comma = false;
 
@@ -668,20 +706,10 @@ private:
                         throw error_reporter_.unexpectedTokenError("number", token);
                     }
 
-                    arg.type = integer_vector ? Argument::Type::IntegerVector : Argument::Type::FloatVector;
-                    // Parse tokens into integer or float vector
                     if (integer_vector) {
-                        IntegerVectorData data;
-                        for (const auto& token : tokens) {
-                            data.value.push_back(std::stoll(token.value));
-                        }
-                        arg.data = std::move(data);
+                        parseIntegerVector();
                     } else {
-                        FloatVectorData data;
-                        for (const auto& token : tokens) {
-                            data.value.push_back(std::stod(token.value));
-                        }
-                        arg.data = std::move(data);
+                        parseFloatVector();
                     }
                     return arg;
             }
